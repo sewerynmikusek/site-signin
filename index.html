@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Site Sign-In">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Omexom Site Sign-In</title>
+<style>
+  :root{
+    --navy:#101F3A; --navy2:#1A2E52; --red:#E4003A; --green:#1F9D55;
+    --bg:#EEF2F8; --ink:#16213A; --mute:#5A6880; --line:#DDE4EE;
+  }
+  *{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+  input,textarea{-webkit-user-select:text;user-select:text;}
+  html,body{margin:0;padding:0;height:100%;overscroll-behavior:none;touch-action:manipulation;}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;padding-top:calc(12px + env(safe-area-inset-top));}
+  .logo{display:flex;align-items:center;gap:9px;cursor:pointer;background:none;border:none;padding:0;}
+  .logo .mark{width:20px;height:20px;background:var(--red);border-radius:3px;transform:skewX(-12deg);}
+  .logo .word{font-size:22px;font-weight:800;letter-spacing:.12em;color:var(--navy);}
+  .logo img{height:34px;object-fit:contain;}
+  .clock{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;}
+  .date{font-size:12px;color:var(--mute);text-align:right;}
+  main{max-width:900px;margin:0 auto;padding:28px 22px 70px;}
+  h1{font-size:32px;font-weight:800;margin:0;letter-spacing:-.01em;}
+  h2{font-size:24px;font-weight:800;margin:0 0 18px;}
+  h3{font-size:19px;font-weight:800;margin:0 0 12px;}
+  .card{background:#fff;border-radius:20px;padding:28px;box-shadow:0 1px 3px rgba(16,31,58,.08);}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:640px){.tiles{grid-template-columns:1fr;}}
+  .tile{border:none;text-align:left;padding:32px;cursor:pointer;border-radius:20px;box-shadow:0 1px 3px rgba(16,31,58,.08);font-family:inherit;}
+  .tile.emp{background:var(--navy);color:#fff;}
+  .tile.vis{background:#fff;color:var(--ink);}
+  .eyebrow{font-size:13px;font-weight:700;letter-spacing:.14em;}
+  .tile h3{font-size:29px;margin:10px 0 12px;}
+  .pill{margin-top:20px;display:inline-block;padding:6px 14px;border-radius:99px;font-size:14px;font-weight:600;}
+  button{font-family:inherit;}
+  .btn{border-radius:12px;padding:15px 28px;font-size:17px;font-weight:700;cursor:pointer;min-height:54px;border:none;}
+  .btn.primary{background:var(--red);color:#fff;}
+  .btn.navy{background:var(--navy);color:#fff;}
+  .btn.green{background:var(--green);color:#fff;}
+  .btn.ghost{background:#fff;color:var(--ink);border:1.5px solid #C7D0DE;font-weight:600;}
+  .btn:disabled{opacity:.4;}
+  .btn.sm{min-height:0;padding:9px 16px;font-size:14px;border-radius:10px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  label.f{font-size:14px;font-weight:700;color:var(--mute);display:block;margin-bottom:6px;}
+  input.f,textarea.f{width:100%;padding:15px 16px;font-size:17px;border-radius:12px;border:1.5px solid #C7D0DE;background:#fff;color:var(--ink);outline:none;font-family:inherit;}
+  textarea.f{font-size:14px;line-height:1.5;}
+  .list button{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:16px 14px;border:none;border-bottom:1px solid #EDF1F7;background:none;cursor:pointer;font-size:18px;color:var(--ink);}
+  .agree{max-height:290px;overflow-y:auto;-webkit-overflow-scrolling:touch;border:1.5px solid var(--line);border-radius:12px;padding:16px;font-size:15px;line-height:1.55;white-space:pre-wrap;color:#2A3550;background:#FAFBFD;-webkit-user-select:text;user-select:text;}
+  video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+  .cam{border-radius:16px;overflow:hidden;background:#000;max-width:420px;margin:0 auto;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);color:#fff;padding:14px 26px;border-radius:14px;font-size:16px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:50;}
+  table{width:100%;border-collapse:collapse;font-size:15px;}
+  td{padding:9px 4px;border-bottom:1px solid #EDF1F7;vertical-align:middle;}
+  .muted{color:var(--mute);font-size:13px;}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--bg);}
+  .thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;transform:scaleX(-1);}
+  .scroll{max-height:400px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .center{text-align:center;}
+  @media (prefers-reduced-motion:no-preference){.card,.tile{transition:transform .12s ease;} .tile:active{transform:scale(.985);}}
+</style>
+</head>
+<body>
+<header>
+  <button class="logo" id="logoBtn"><span class="mark"></span><span class="word">OMEXOM</span></button>
+  <div style="display:flex;align-items:center;gap:18px">
+    <div><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
+    <button class="btn ghost sm" id="adminBtn">&#9881;</button>
+  </div>
+</header>
+<main id="app"></main>
+
+<script>
+/* =====================================================================
+   OMEXOM SITE SIGN-IN  —  standalone single-file kiosk app
+   Storage: IndexedDB (survives restarts, large enough for photos)
+     settings          {pin, disclosure, logo}
+     register          [{name,email}]
+     onsite            [{id,month,name,type}]
+     log:YYYY-MM       [record]
+     photo:YYYY-MM:id  dataURL
+   ===================================================================== */
+
+var DEFAULT_DISCLOSURE =
+"SITE ACCESS & DATA PRIVACY AGREEMENT\n\n"+
+"1. I confirm that I have reported to site reception and will remain accompanied by my host unless a site induction has been completed.\n\n"+
+"2. I will comply with all site safety rules, wear the PPE required for the areas I access, and follow instructions given by site staff, including emergency evacuation procedures.\n\n"+
+"3. I understand that photography, recordings and connection of devices to site systems are not permitted without written authorisation.\n\n"+
+"4. I agree to keep confidential any commercial, technical or operational information seen or heard during my visit.\n\n"+
+"5. Data privacy: my name, contact details, photograph and sign-in/out times are recorded for site security, safety (fire register) and audit purposes. Records are retained for a minimum of 6 months and then deleted, in line with UK GDPR. I can request access to or deletion of my data via site management.\n\n"+
+"By tapping \"I Accept\", I confirm I have read, understood and agree to the above.";
+
+/* ---------------- IndexedDB key-value store ---------------- */
+var DB=null;
+function openDB(){return new Promise(function(res,rej){
+  var r=indexedDB.open("omexom-signin",1);
+  r.onupgradeneeded=function(){r.result.createObjectStore("kv");};
+  r.onsuccess=function(){DB=r.result;res();};
+  r.onerror=function(){rej(r.error);};
+});}
+function tx(mode){return DB.transaction("kv",mode).objectStore("kv");}
+function kvGet(k,fb){return new Promise(function(res){try{var q=tx("readonly").get(k);
+  q.onsuccess=function(){res(q.result===undefined?fb:q.result);};q.onerror=function(){res(fb);};}catch(e){res(fb);}});}
+function kvSet(k,v){return new Promise(function(res,rej){try{var q=tx("readwrite").put(v,k);
+  q.onsuccess=function(){res(true);};q.onerror=function(){rej(q.error);};}catch(e){rej(e);}});}
+function kvDel(k){return new Promise(function(res){try{var q=tx("readwrite").delete(k);q.onsuccess=function(){res();};q.onerror=function(){res();};}catch(e){res();}});}
+function kvKeys(){return new Promise(function(res){try{var q=tx("readonly").getAllKeys();
+  q.onsuccess=function(){res(q.result||[]);};q.onerror=function(){res([]);};}catch(e){res([]);}});}
+
+/* ---------------- helpers ---------------- */
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function mKey(d){return "log:"+d.toISOString().slice(0,7);}
+function pKey(d,id){return "photo:"+d.toISOString().slice(0,7)+":"+id;}
+function fmtT(iso){return iso?new Date(iso).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"\u2014";}
+function fmtD(iso){return new Date(iso).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+function $(id){return document.getElementById(id);}
+
+/* ---------------- state ---------------- */
+var S={screen:"home",settings:{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null},
+        register:[],onsite:[],flow:{},unlocked:false,tab:"register"};
+var stream=null;
+
+function toast(msg,ok){
+  var t=document.createElement("div");
+  t.className="toast";t.style.background=ok===false?"var(--red)":"var(--green)";t.textContent=msg;
+  document.body.appendChild(t);setTimeout(function(){t.remove();},3500);
+}
+
+/* ---------------- clock ---------------- */
+function tick(){var n=new Date();
+  $("clock").textContent=n.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+  $("date").textContent=n.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"});}
+
+/* ---------------- kiosk hardening ---------------- */
+document.addEventListener("touchstart",function(e){if(e.touches.length>1)e.preventDefault();},{passive:false});
+var lastTap=0;
+document.addEventListener("touchend",function(e){var n=Date.now();if(n-lastTap<320)e.preventDefault();lastTap=n;},{passive:false});
+document.addEventListener("gesturestart",function(e){e.preventDefault();});
+document.addEventListener("contextmenu",function(e){e.preventDefault();});
+var wl=null;
+function wake(){if("wakeLock" in navigator){navigator.wakeLock.request("screen").then(function(l){wl=l;}).catch(function(){});}}
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")wake();});
+var idleT;
+function resetIdle(){clearTimeout(idleT);idleT=setTimeout(function(){
+  if(S.screen!=="home"){stopCam();S.flow={};S.unlocked=false;go("home");}},90000);}
+["touchstart","mousedown","keydown"].forEach(function(ev){document.addEventListener(ev,resetIdle,{passive:true});});
+
+/* ---------------- navigation ---------------- */
+function go(screen){if(screen!=="camera")stopCam();S.screen=screen;render();}
+$("logoBtn").onclick=function(){S.flow={};S.unlocked=false;go("home");};
+$("adminBtn").onclick=function(){S.flow={};go("admin");};
+
+/* ---------------- records ---------------- */
+async function signIn(rec,photo){
+  var now=new Date();
+  var r={id:uid(),type:rec.type,name:rec.name,email:rec.email||"",phone:rec.phone||"",
+         in:now.toISOString(),out:null,day:now.toISOString().slice(0,10)};
+  var mk=mKey(now);
+  var log=await kvGet(mk,[]);log.push(r);await kvSet(mk,log);
+  if(photo){try{await kvSet(pKey(now,r.id),photo);}catch(e){}}
+  S.onsite.push({id:r.id,month:mk,name:r.name,type:r.type});
+  await kvSet("onsite",S.onsite);
+  toast(r.name+" signed in at "+fmtT(r.in));
+  S.flow={};go("home");
+}
+async function signOut(entry){
+  var log=await kvGet(entry.month,[]);
+  for(var i=0;i<log.length;i++){if(log[i].id===entry.id){log[i].out=new Date().toISOString();break;}}
+  await kvSet(entry.month,log);
+  S.onsite=S.onsite.filter(function(o){return o.id!==entry.id;});
+  await kvSet("onsite",S.onsite);
+  toast(entry.name+" signed out at "+fmtT(new Date().toISOString()));
+  S.flow={};go("home");
+}
+
+/* ---------------- camera ---------------- */
+function stopCam(){if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}}
+async function startCam(){
+  var box=$("camBox");if(!box)return;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640}},audio:false});
+    var v=document.createElement("video");v.autoplay=true;v.playsInline=true;v.muted=true;v.srcObject=stream;
+    box.innerHTML="";box.appendChild(v);
+  }catch(e){
+    box.innerHTML='<div style="color:#fff;padding:22px;font-size:15px">Camera unavailable. Check camera permission for this app, then reload. You can use "Upload instead" below.</div>';
+  }
+}
+function shrink(source,cb){
+  var c=document.createElement("canvas"),w=240;
+  var sw=source.videoWidth||source.width, sh=source.videoHeight||source.height;
+  if(!sw){cb(null);return;}
+  c.width=w;c.height=Math.round(sh/sw*w);
+  c.getContext("2d").drawImage(source,0,0,c.width,c.height);
+  cb(c.toDataURL("image/jpeg",0.6));
+}
+function snap(next){var v=$("camBox").querySelector("video");if(!v)return;shrink(v,function(d){if(d){S.flow.photo=d;stopCam();go(next);}});}
+function pickFile(input,next){
+  var f=input.files&&input.files[0];if(!f)return;
+  var img=new Image();img.onload=function(){shrink(img,function(d){if(d){S.flow.photo=d;stopCam();go(next);}});};
+  img.src=URL.createObjectURL(f);
+}
+
+/* ---------------- CSV ---------------- */
+async function exportCSV(){
+  var keys=(await kvKeys()).filter(function(k){return typeof k==="string"&&k.indexOf("log:")===0;}).sort();
+  var rows=[["Date","Type","Name","Email","Phone","Sign in","Sign out"]];
+  for(var i=0;i<keys.length;i++){
+    var log=await kvGet(keys[i],[]);
+    log.forEach(function(r){rows.push([r.day,r.type,r.name,r.email,r.phone,fmtT(r.in),fmtT(r.out)]);});
+  }
+  var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?"":c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
+  var name="omexom-signin-"+new Date().toISOString().slice(0,10)+".csv";
+  var file=new File([csv],name,{type:"text/csv"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:name});toast("Choose Save to Files \u203A OneDrive to archive");return;}catch(e){}
+  }
+  var url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  var a=document.createElement("a");a.href=url;a.download=name;a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},2000);
+  toast("CSV downloaded \u2014 file it in SharePoint");
+}
+async function purgeOld(){
+  var cut=new Date();cut.setMonth(cut.getMonth()-6);var cs=cut.toISOString().slice(0,7);
+  var keys=await kvKeys(),n=0;
+  for(var i=0;i<keys.length;i++){var k=keys[i];if(typeof k!=="string")continue;
+    if(k.indexOf("log:")===0&&k.slice(4)<cs){await kvDel(k);n++;}
+    if(k.indexOf("photo:")===0&&k.slice(6,13)<cs){await kvDel(k);}
+  }
+  toast(n?("Deleted "+n+" month(s) older than 6 months"):"Nothing older than 6 months to delete");
+}
+
+/* ===================== RENDER ===================== */
+function render(){
+  var el=$("app");
+  var logoEl=$("logoBtn");
+  logoEl.innerHTML=S.settings.logo?'<img src="'+S.settings.logo+'" alt="Omexom">'
+    :'<span class="mark"></span><span class="word">OMEXOM</span>';
+  if(S.screen==="home")return home(el);
+  if(S.screen==="employee")return employee(el);
+  if(S.screen==="empcam"||S.screen==="viscam")return camera(el);
+  if(S.screen==="empconfirm")return empConfirm(el);
+  if(S.screen==="visitor")return visitor(el);
+  if(S.screen==="visdetails")return visDetails(el);
+  if(S.screen==="visagree")return visAgree(el);
+  if(S.screen==="visout")return visOut(el);
+  if(S.screen==="admin")return admin(el);
+}
+
+function home(el){
+  var e=S.onsite.filter(function(o){return o.type==="employee";}).length;
+  var v=S.onsite.filter(function(o){return o.type==="visitor";}).length;
+  el.innerHTML=
+  '<div class="center" style="margin-bottom:32px"><h1>Welcome to site</h1>'+
+  '<p style="color:var(--mute);font-size:17px;margin-top:8px">Please sign in on arrival and sign out when leaving.</p></div>'+
+  '<div class="tiles">'+
+   '<button class="tile emp" id="tEmp"><div class="eyebrow" style="opacity:.7">OMEXOM STAFF</div>'+
+   '<h3>Employees</h3><div style="font-size:15px;opacity:.85">Sign in or out \u2014 search your name, photo taken automatically.</div>'+
+   '<div class="pill" style="background:rgba(255,255,255,.12)">'+e+' on site</div></button>'+
+   '<button class="tile vis" id="tVis"><div class="eyebrow" style="color:var(--red)">GUESTS &amp; CONTRACTORS</div>'+
+   '<h3 style="color:var(--navy)">Visitors</h3><div style="font-size:15px;color:var(--mute)">Enter your details, have your photo taken and accept the site agreement.</div>'+
+   '<div class="pill" style="background:var(--bg);color:var(--navy)">'+v+' on site</div></button></div>'+
+  '<p class="center muted" style="margin-top:26px">Sign-in records (name, contact details, photo, times) are kept for a minimum of 6 months for safety and security purposes.</p>';
+  $("tEmp").onclick=function(){S.flow={};go("employee");};
+  $("tVis").onclick=function(){S.flow={};go("visitor");};
+}
+
+function employee(el){
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Employee sign in / out</h2><div class="card">'+
+  '<label class="f">Start typing your name (minimum 3 letters)</label>'+
+  '<input class="f" id="q" placeholder="e.g. John Smith" autocomplete="off">'+
+  (S.register.length?"":'<p style="color:var(--red);font-size:14px;margin-top:12px">No employees set up yet \u2014 add the team list in Admin (\u2699).</p>')+
+  '<div class="list" id="matches" style="margin-top:10px"></div>'+
+  '<div style="margin-top:18px"><button class="btn ghost" id="back">Back</button></div></div></div>';
+  $("back").onclick=function(){go("home");};
+  var q=$("q");q.focus();
+  q.oninput=function(){
+    var v=q.value.trim().toLowerCase(),box=$("matches");
+    if(v.length<3){box.innerHTML="";return;}
+    var m=S.register.filter(function(r){return r.name.toLowerCase().indexOf(v)>=0;}).slice(0,8);
+    if(!m.length){box.innerHTML='<p class="muted" style="font-size:15px">No match found \u2014 check spelling or contact site admin.</p>';return;}
+    box.innerHTML=m.map(function(r,i){
+      var open=S.onsite.filter(function(o){return o.type==="employee"&&o.name===r.name;})[0];
+      return '<button data-i="'+i+'"><span style="font-weight:600">'+esc(r.name)+'</span>'+
+        (open?'<span style="color:var(--green);font-size:13px;font-weight:700">ON SITE \u2014 tap to sign out</span>'
+             :'<span class="muted">tap to sign in</span>')+'</button>';}).join("");
+    Array.prototype.forEach.call(box.querySelectorAll("button"),function(b){
+      b.onclick=function(){
+        var r=m[+b.dataset.i];
+        var open=S.onsite.filter(function(o){return o.type==="employee"&&o.name===r.name;})[0];
+        if(open){signOut(open);return;}
+        S.flow={type:"employee",name:r.name,email:r.email};go("empcam");
+      };});
+  };
+}
+
+function camera(el){
+  var back=S.screen==="empcam"?"employee":"visdetails";
+  var next=S.screen==="empcam"?"empconfirm":"visagree";
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Photograph</h2><div class="card">'+
+  '<p class="center" style="font-size:17px;margin:0 0 16px"><strong>'+esc(S.flow.name)+'</strong> \u2014 look at the camera and take your photo.</p>'+
+  '<div class="cam" id="camBox"></div>'+
+  '<div class="row center" style="justify-content:center;margin-top:18px">'+
+  '<button class="btn ghost" id="b">Back</button>'+
+  '<button class="btn primary" id="s">Take photo</button>'+
+  '<label class="btn ghost" style="display:inline-flex;align-items:center">Upload instead<input type="file" accept="image/*" capture="user" id="f" style="display:none"></label>'+
+  '</div></div></div>';
+  $("b").onclick=function(){go(back);};
+  $("s").onclick=function(){snap(next);};
+  $("f").onchange=function(){pickFile(this,next);};
+  startCam();
+}
+
+function empConfirm(el){
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Confirm</h2><div class="card center">'+
+  '<img src="'+S.flow.photo+'" style="width:180px;border-radius:16px;transform:scaleX(-1)">'+
+  '<div style="font-size:20px;font-weight:700;margin-top:12px">'+esc(S.flow.name)+'</div>'+
+  '<div class="muted" style="font-size:15px">'+esc(S.flow.email)+'</div>'+
+  '<div class="row" style="justify-content:center;margin-top:22px">'+
+  '<button class="btn ghost" id="r">Retake</button><button class="btn green" id="c">Confirm sign in</button>'+
+  '</div></div></div>';
+  $("r").onclick=function(){go("empcam");};
+  $("c").onclick=function(){signIn({type:"employee",name:S.flow.name,email:S.flow.email},S.flow.photo);};
+}
+
+function visitor(el){
+  var vs=S.onsite.filter(function(o){return o.type==="visitor";});
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Visitor sign in / out</h2>'+
+  '<div style="display:grid;gap:14px">'+
+  '<button class="btn navy" id="in" style="font-size:19px;padding:20px">Sign in \u2014 I have just arrived</button>'+
+  '<button class="btn ghost" id="out" style="font-size:19px;padding:20px"'+(vs.length?"":" disabled")+'>Sign out \u2014 I am leaving'+(vs.length?"":" (no visitors on site)")+'</button>'+
+  '<button class="btn ghost" id="back">Back</button></div></div>';
+  $("in").onclick=function(){S.flow={type:"visitor",name:"",email:"",phone:""};go("visdetails");};
+  $("out").onclick=function(){go("visout");};
+  $("back").onclick=function(){go("home");};
+}
+
+function visDetails(el){
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Your details</h2><div class="card">'+
+  '<div style="display:grid;gap:14px">'+
+  '<div><label class="f">Full name *</label><input class="f" id="n" value="'+esc(S.flow.name)+'"></div>'+
+  '<div><label class="f">Email *</label><input class="f" id="e" type="email" inputmode="email" placeholder="name@company.com" value="'+esc(S.flow.email)+'"></div>'+
+  '<div><label class="f">Phone number *</label><input class="f" id="p" type="tel" inputmode="tel" placeholder="07\u2026" value="'+esc(S.flow.phone)+'"></div>'+
+  '</div><div class="row" style="margin-top:20px"><button class="btn ghost" id="b">Back</button>'+
+  '<button class="btn primary" id="nx" disabled>Next \u2014 photo</button></div></div></div>';
+  function chk(){
+    S.flow.name=$("n").value;S.flow.email=$("e").value;S.flow.phone=$("p").value;
+    $("nx").disabled=!(S.flow.name.trim().length>=3&&/\S+@\S+\.\S+/.test(S.flow.email)&&S.flow.phone.trim().length>=7);
+  }
+  ["n","e","p"].forEach(function(i){$(i).oninput=chk;});chk();
+  $("n").focus();
+  $("b").onclick=function(){go("visitor");};
+  $("nx").onclick=function(){go("viscam");};
+}
+
+function visAgree(el){
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Agreement</h2><div class="card">'+
+  '<h3>Site access &amp; privacy agreement</h3>'+
+  '<div class="agree" id="ag">'+esc(S.settings.disclosure)+'</div>'+
+  '<p class="muted" id="hint" style="margin-top:8px">Scroll to the bottom to enable the Accept button.</p>'+
+  '<div class="row" style="margin-top:14px"><button class="btn ghost" id="b">Back</button>'+
+  '<button class="btn green" id="ok" disabled>I Accept \u2014 sign in</button></div></div></div>';
+  var ag=$("ag");
+  function chk(){if(ag.scrollTop+ag.clientHeight>=ag.scrollHeight-24){$("ok").disabled=false;$("hint").style.display="none";}}
+  ag.onscroll=chk;chk();
+  $("b").onclick=function(){go("viscam");};
+  $("ok").onclick=function(){signIn({type:"visitor",name:S.flow.name,email:S.flow.email,phone:S.flow.phone},S.flow.photo);};
+}
+
+function visOut(el){
+  var vs=S.onsite.filter(function(o){return o.type==="visitor";});
+  el.innerHTML='<div style="max-width:560px;margin:0 auto"><h2>Who is leaving?</h2><div class="card"><div class="list" id="l">'+
+  vs.map(function(v,i){return '<button data-i="'+i+'"><span style="font-weight:600">'+esc(v.name)+'</span><span style="color:var(--red);font-weight:700;font-size:14px">Sign out</span></button>';}).join("")+
+  '</div><div style="margin-top:18px"><button class="btn ghost" id="b">Back</button></div></div></div>';
+  Array.prototype.forEach.call($("l").querySelectorAll("button"),function(b){b.onclick=function(){signOut(vs[+b.dataset.i]);};});
+  $("b").onclick=function(){go("visitor");};
+}
+
+/* ---------------- admin ---------------- */
+function admin(el){
+  if(!S.unlocked){
+    el.innerHTML='<div class="card center" style="max-width:400px;margin:0 auto"><h3>Admin access</h3>'+
+    '<input class="f" id="pin" type="password" inputmode="numeric" placeholder="PIN" style="text-align:center;letter-spacing:.4em;font-size:22px">'+
+    '<div class="row" style="justify-content:center;margin-top:18px"><button class="btn ghost" id="b">Back</button>'+
+    '<button class="btn navy" id="u">Unlock</button></div>'+
+    '<p class="muted" style="margin-top:14px">Default PIN is 1234 \u2014 change it in Settings after first use.</p></div>';
+    $("b").onclick=function(){go("home");};
+    $("u").onclick=function(){if($("pin").value===S.settings.pin){S.unlocked=true;render();}else toast("Incorrect PIN",false);};
+    $("pin").onkeydown=function(e){if(e.key==="Enter")$("u").click();};
+    return;
+  }
+  var tabs=[["register","Employee list"],["log","Sign-in log"],["settings","Settings"]];
+  el.innerHTML='<div class="row" style="margin-bottom:18px">'+
+    tabs.map(function(t){return '<button class="btn sm '+(S.tab===t[0]?"navy":"ghost")+'" data-t="'+t[0]+'">'+t[1]+'</button>';}).join("")+
+    '<div style="flex:1"></div><button class="btn sm ghost" id="close">Close admin</button></div><div id="pane"></div>';
+  Array.prototype.forEach.call(el.querySelectorAll("[data-t]"),function(b){b.onclick=function(){S.tab=b.dataset.t;render();};});
+  $("close").onclick=function(){S.unlocked=false;go("home");};
+  if(S.tab==="register")paneRegister();
+  if(S.tab==="log")paneLog();
+  if(S.tab==="settings")paneSettings();
+}
+
+function paneRegister(){
+  $("pane").innerHTML='<div class="card"><h3>Employee list ('+S.register.length+')</h3>'+
+  '<div class="row" style="margin-bottom:10px"><input class="f" id="nn" placeholder="Full name" style="flex:1;min-width:160px">'+
+  '<input class="f" id="ne" placeholder="Email" style="flex:1;min-width:160px">'+
+  '<button class="btn navy" id="add">Add</button></div>'+
+  '<label class="btn ghost sm" style="display:inline-block;margin-bottom:14px">Import CSV (name,email)<input type="file" accept=".csv,text/csv" id="csv" style="display:none"></label>'+
+  '<div class="scroll" id="list"></div></div>';
+  function draw(){
+    $("list").innerHTML=S.register.length?S.register.map(function(r,i){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid #EDF1F7;font-size:16px">'+
+      '<div><strong>'+esc(r.name)+'</strong> <span class="muted">'+esc(r.email)+'</span></div>'+
+      '<button class="btn ghost sm" data-r="'+i+'" style="color:var(--red);border-color:#F3C1CD">Remove</button></div>';}).join("")
+      :'<p class="muted">No employees yet \u2014 add names above or import a CSV.</p>';
+    Array.prototype.forEach.call($("list").querySelectorAll("[data-r]"),function(b){
+      b.onclick=async function(){S.register.splice(+b.dataset.r,1);await kvSet("register",S.register);paneRegister();};});
+  }
+  draw();
+  $("add").onclick=async function(){
+    var n=$("nn").value.trim();if(n.length<3)return;
+    S.register.push({name:n,email:$("ne").value.trim()});
+    S.register.sort(function(a,b){return a.name.localeCompare(b.name);});
+    await kvSet("register",S.register);paneRegister();
+  };
+  $("csv").onchange=function(){
+    var f=this.files[0];if(!f)return;var rd=new FileReader();
+    rd.onload=async function(){
+      rd.result.split(/\r?\n/).forEach(function(line){
+        var c=line.split(",").map(function(x){return x.trim().replace(/^"|"$/g,"");});
+        if(!c[0]||c[0].toLowerCase()==="name")return;
+        if(!S.register.some(function(r){return r.name===c[0];}))S.register.push({name:c[0],email:c[1]||""});
+      });
+      S.register.sort(function(a,b){return a.name.localeCompare(b.name);});
+      await kvSet("register",S.register);toast("Imported \u2014 "+S.register.length+" employees on the list");paneRegister();
+    };rd.readAsText(f);
+  };
+}
+
+async function paneLog(){
+  var m=S.logMonth||new Date().toISOString().slice(0,7);S.logMonth=m;
+  $("pane").innerHTML='<div class="card"><div class="row" style="align-items:center;margin-bottom:14px">'+
+  '<h3 style="margin:0">Sign-in log</h3><input class="f" type="month" id="mo" value="'+m+'" style="width:auto;padding:9px 12px;font-size:15px">'+
+  '<div style="flex:1"></div><button class="btn ghost sm" id="exp">Export all to CSV</button></div>'+
+  '<div class="scroll" id="rows">Loading\u2026</div>'+
+  '<p class="muted" style="margin-top:12px">Currently on site: '+S.onsite.length+'. Export regularly and file the CSV in SharePoint as the permanent archive.</p></div>';
+  $("mo").onchange=function(){S.logMonth=this.value;paneLog();};
+  $("exp").onclick=exportCSV;
+  var log=await kvGet("log:"+m,[]);
+  if(!log.length){$("rows").innerHTML='<p class="muted">No records for '+m+'.</p>';return;}
+  var html='<table>';
+  for(var i=log.length-1;i>=0;i--){var r=log[i];
+    var ph=await kvGet("photo:"+m+":"+r.id,null);
+    html+='<tr><td style="width:46px">'+(ph?'<img class="thumb" src="'+ph+'">':'')+'</td>'+
+    '<td><strong>'+esc(r.name)+'</strong> <span class="tag" style="color:'+(r.type==="employee"?"var(--navy)":"var(--red)")+'">'+r.type+'</span>'+
+    '<div class="muted">'+esc(r.email)+(r.phone?" \u00B7 "+esc(r.phone):"")+'</div></td>'+
+    '<td style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums">'+fmtD(r.in)+
+    '<div class="muted">'+fmtT(r.in)+' \u2192 '+(r.out?fmtT(r.out):'<span style="color:var(--green);font-weight:700">on site</span>')+'</div></td></tr>';
+  }
+  $("rows").innerHTML=html+'</table>';
+}
+
+function paneSettings(){
+  $("pane").innerHTML=
+  '<div style="display:grid;gap:18px">'+
+  '<div class="card"><h3>Logo</h3><div id="lp"></div>'+
+  '<label class="btn ghost sm" style="display:inline-block;margin-top:12px">Upload Omexom logo (PNG/JPG)<input type="file" accept="image/*" id="lf" style="display:none"></label></div>'+
+  '<div class="card"><h3>Visitor agreement text</h3><textarea class="f" id="ds" rows="10">'+esc(S.settings.disclosure)+'</textarea>'+
+  '<button class="btn ghost sm" id="sd" style="margin-top:10px">Save agreement</button></div>'+
+  '<div class="card"><h3>Admin PIN</h3><input class="f" id="pn" value="'+esc(S.settings.pin)+'" style="max-width:200px;display:inline-block">'+
+  '<button class="btn ghost sm" id="sp" style="margin-left:10px">Save PIN</button></div>'+
+  '<div class="card"><h3>Data retention</h3><p class="muted" style="font-size:14px">Records are kept until deleted. This removes only complete months older than 6 months \u2014 export a CSV first.</p>'+
+  '<button class="btn ghost sm" id="pg" style="color:var(--red);border-color:#F3C1CD">Delete records older than 6 months</button></div></div>';
+  $("lp").innerHTML=S.settings.logo?'<img src="'+S.settings.logo+'" style="height:40px">':'<span class="muted">Using the built-in wordmark.</span>';
+  $("lf").onchange=function(){
+    var f=this.files[0];if(!f)return;var img=new Image();
+    img.onload=async function(){
+      var c=document.createElement("canvas"),w=Math.min(400,img.width);
+      c.width=w;c.height=Math.round(img.height/img.width*w);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      S.settings.logo=c.toDataURL("image/png");await kvSet("settings",S.settings);toast("Logo updated");render();
+    };img.src=URL.createObjectURL(f);
+  };
+  $("sd").onclick=async function(){S.settings.disclosure=$("ds").value;await kvSet("settings",S.settings);toast("Agreement saved");};
+  $("sp").onclick=async function(){S.settings.pin=$("pn").value.trim()||"1234";await kvSet("settings",S.settings);toast("PIN saved");};
+  $("pg").onclick=purgeOld;
+}
+
+/* ---------------- boot ---------------- */
+(async function(){
+  tick();setInterval(tick,20000);
+  try{
+    await openDB();
+    S.settings=await kvGet("settings",{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null});
+    S.register=await kvGet("register",[]);
+    S.onsite=await kvGet("onsite",[]);
+    if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
+  }catch(e){toast("Storage unavailable \u2014 records will not be saved",false);}
+  wake();resetIdle();render();
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
+</body>
+</html>
