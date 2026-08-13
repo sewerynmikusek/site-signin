@@ -18,13 +18,21 @@
   html,body{margin:0;padding:0;height:100%;overscroll-behavior:none;touch-action:manipulation;}
   body{background:var(--bg);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;}
   header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;padding-top:calc(12px + env(safe-area-inset-top));}
-  .logo{display:flex;align-items:center;gap:9px;cursor:pointer;background:none;border:none;padding:0;}
-  .logo .mark{width:20px;height:20px;background:var(--red);border-radius:3px;transform:skewX(-12deg);}
-  .logo .word{font-size:22px;font-weight:800;letter-spacing:.12em;color:var(--navy);}
-  .logo img{height:34px;object-fit:contain;}
+  .logo{display:flex;align-items:center;gap:12px;cursor:pointer;background:none;border:none;padding:0;}
+  .logo .mark{width:30px;height:30px;background:var(--red);border-radius:4px;transform:skewX(-12deg);}
+  .logo .word{font-size:32px;font-weight:800;letter-spacing:.12em;color:var(--navy);}
+  .logo img{height:54px;object-fit:contain;}
+  /* large logo on the welcome screen */
+  .biglogo{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:26px;}
+  .biglogo .mark{width:54px;height:54px;background:var(--red);border-radius:7px;transform:skewX(-12deg);}
+  .biglogo .word{font-size:58px;font-weight:800;letter-spacing:.12em;color:var(--navy);line-height:1;}
+  .biglogo img{max-height:110px;max-width:78vw;object-fit:contain;}
+  @media (max-height:700px){.biglogo{margin-bottom:16px;}.biglogo .word{font-size:44px;}.biglogo .mark{width:42px;height:42px;}.biglogo img{max-height:80px;}}
+  /* welcome screen fills the display */
+  .homewrap{min-height:calc(100vh - 108px - env(safe-area-inset-top));display:flex;flex-direction:column;justify-content:center;}
   .clock{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;}
   .date{font-size:12px;color:var(--mute);text-align:right;}
-  main{max-width:900px;margin:0 auto;padding:28px 22px 70px;}
+  main{max-width:900px;margin:0 auto;padding:22px 22px 30px;}
   h1{font-size:32px;font-weight:800;margin:0;letter-spacing:-.01em;}
   h2{font-size:24px;font-weight:800;margin:0 0 18px;}
   h3{font-size:19px;font-weight:800;margin:0 0 12px;}
@@ -121,7 +129,9 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function $(id){return document.getElementById(id);}
 
 /* ---------------- state ---------------- */
-var S={screen:"home",settings:{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null},
+var DEFAULT_TITLE="Welcome to site";
+var DEFAULT_SUB="Please sign in on arrival and sign out when leaving.";
+var S={screen:"home",settings:{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null,title:DEFAULT_TITLE,sub:DEFAULT_SUB},
         register:[],onsite:[],flow:{},unlocked:false,tab:"register"};
 var stream=null;
 
@@ -187,7 +197,7 @@ async function startCam(){
     var v=document.createElement("video");v.autoplay=true;v.playsInline=true;v.muted=true;v.srcObject=stream;
     box.innerHTML="";box.appendChild(v);
   }catch(e){
-    box.innerHTML='<div style="color:#fff;padding:22px;font-size:15px">Camera unavailable. Check camera permission for this app, then reload. You can use "Upload instead" below.</div>';
+    box.innerHTML='<div style="color:#fff;padding:22px;font-size:15px">Camera unavailable. Please report this to site management. Check camera permission for this app in iPad Settings, then close and reopen the app.</div>';
   }
 }
 function shrink(source,cb){
@@ -199,22 +209,10 @@ function shrink(source,cb){
   cb(c.toDataURL("image/jpeg",0.6));
 }
 function snap(next){var v=$("camBox").querySelector("video");if(!v)return;shrink(v,function(d){if(d){S.flow.photo=d;stopCam();go(next);}});}
-function pickFile(input,next){
-  var f=input.files&&input.files[0];if(!f)return;
-  var img=new Image();img.onload=function(){shrink(img,function(d){if(d){S.flow.photo=d;stopCam();go(next);}});};
-  img.src=URL.createObjectURL(f);
-}
 
 /* ---------------- CSV ---------------- */
-async function exportCSV(){
-  var keys=(await kvKeys()).filter(function(k){return typeof k==="string"&&k.indexOf("log:")===0;}).sort();
-  var rows=[["Date","Type","Name","Email","Phone","Sign in","Sign out"]];
-  for(var i=0;i<keys.length;i++){
-    var log=await kvGet(keys[i],[]);
-    log.forEach(function(r){rows.push([r.day,r.type,r.name,r.email,r.phone,fmtT(r.in),fmtT(r.out)]);});
-  }
+async function saveCSV(rows,name){
   var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?"":c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-  var name="omexom-signin-"+new Date().toISOString().slice(0,10)+".csv";
   var file=new File([csv],name,{type:"text/csv"});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     try{await navigator.share({files:[file],title:name});toast("Choose Save to Files \u203A OneDrive to archive");return;}catch(e){}
@@ -222,7 +220,16 @@ async function exportCSV(){
   var url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
   var a=document.createElement("a");a.href=url;a.download=name;a.click();
   setTimeout(function(){URL.revokeObjectURL(url);},2000);
-  toast("CSV downloaded \u2014 file it in SharePoint");
+  toast("CSV saved \u2014 file it in SharePoint");
+}
+async function exportCSV(){
+  var keys=(await kvKeys()).filter(function(k){return typeof k==="string"&&k.indexOf("log:")===0;}).sort();
+  var rows=[["Date","Type","Name","Email","Phone","Sign in","Sign out"]];
+  for(var i=0;i<keys.length;i++){
+    var log=await kvGet(keys[i],[]);
+    log.forEach(function(r){rows.push([r.day,r.type,r.name,r.email,r.phone,fmtT(r.in),fmtT(r.out)]);});
+  }
+  await saveCSV(rows,"omexom-signin-"+new Date().toISOString().slice(0,10)+".csv");
 }
 async function purgeOld(){
   var cut=new Date();cut.setMonth(cut.getMonth()-6);var cs=cut.toISOString().slice(0,7);
@@ -254,9 +261,12 @@ function render(){
 function home(el){
   var e=S.onsite.filter(function(o){return o.type==="employee";}).length;
   var v=S.onsite.filter(function(o){return o.type==="visitor";}).length;
-  el.innerHTML=
-  '<div class="center" style="margin-bottom:32px"><h1>Welcome to site</h1>'+
-  '<p style="color:var(--mute);font-size:17px;margin-top:8px">Please sign in on arrival and sign out when leaving.</p></div>'+
+  var big=S.settings.logo?'<img src="'+S.settings.logo+'" alt="Omexom">'
+    :'<span class="mark"></span><span class="word">OMEXOM</span>';
+  el.innerHTML='<div class="homewrap">'+
+  '<div class="biglogo">'+big+'</div>'+
+  '<div class="center" style="margin-bottom:30px"><h1>'+esc(S.settings.title||DEFAULT_TITLE)+'</h1>'+
+  '<p style="color:var(--mute);font-size:17px;margin-top:8px">'+esc(S.settings.sub||"")+'</p></div>'+
   '<div class="tiles">'+
    '<button class="tile emp" id="tEmp"><div class="eyebrow" style="opacity:.7">OMEXOM STAFF</div>'+
    '<h3>Employees</h3><div style="font-size:15px;opacity:.85">Sign in or out \u2014 search your name, photo taken automatically.</div>'+
@@ -264,7 +274,7 @@ function home(el){
    '<button class="tile vis" id="tVis"><div class="eyebrow" style="color:var(--red)">GUESTS &amp; CONTRACTORS</div>'+
    '<h3 style="color:var(--navy)">Visitors</h3><div style="font-size:15px;color:var(--mute)">Enter your details, have your photo taken and accept the site agreement.</div>'+
    '<div class="pill" style="background:var(--bg);color:var(--navy)">'+v+' on site</div></button></div>'+
-  '<p class="center muted" style="margin-top:26px">Sign-in records (name, contact details, photo, times) are kept for a minimum of 6 months for safety and security purposes.</p>';
+  '<p class="center muted" style="margin-top:24px;margin-bottom:0">Sign-in records (name, contact details, photo, times) are kept for a minimum of 6 months for safety and security purposes.</p></div>';
   $("tEmp").onclick=function(){S.flow={};go("employee");};
   $("tVis").onclick=function(){S.flow={};go("visitor");};
 }
@@ -307,11 +317,9 @@ function camera(el){
   '<div class="row center" style="justify-content:center;margin-top:18px">'+
   '<button class="btn ghost" id="b">Back</button>'+
   '<button class="btn primary" id="s">Take photo</button>'+
-  '<label class="btn ghost" style="display:inline-flex;align-items:center">Upload instead<input type="file" accept="image/*" capture="user" id="f" style="display:none"></label>'+
   '</div></div></div>';
   $("b").onclick=function(){go(back);};
   $("s").onclick=function(){snap(next);};
-  $("f").onchange=function(){pickFile(this,next);};
   startCam();
 }
 
@@ -409,7 +417,9 @@ function paneRegister(){
   '<div class="row" style="margin-bottom:10px"><input class="f" id="nn" placeholder="Full name" style="flex:1;min-width:160px">'+
   '<input class="f" id="ne" placeholder="Email" style="flex:1;min-width:160px">'+
   '<button class="btn navy" id="add">Add</button></div>'+
-  '<label class="btn ghost sm" style="display:inline-block;margin-bottom:14px">Import CSV (name,email)<input type="file" accept=".csv,text/csv" id="csv" style="display:none"></label>'+
+  '<div class="row" style="margin-bottom:14px">'+
+  '<label class="btn ghost sm" style="display:inline-block">Import CSV (name,email)<input type="file" accept=".csv,text/csv" id="csv" style="display:none"></label>'+
+  '<button class="btn ghost sm" id="expEmp"'+(S.register.length?"":" disabled")+'>Export employee list</button></div>'+
   '<div class="scroll" id="list"></div></div>';
   function draw(){
     $("list").innerHTML=S.register.length?S.register.map(function(r,i){
@@ -426,6 +436,10 @@ function paneRegister(){
     S.register.push({name:n,email:$("ne").value.trim()});
     S.register.sort(function(a,b){return a.name.localeCompare(b.name);});
     await kvSet("register",S.register);paneRegister();
+  };
+  $("expEmp").onclick=function(){
+    var rows=[["Name","Email"]].concat(S.register.map(function(r){return [r.name,r.email];}));
+    saveCSV(rows,"omexom-employee-list-"+new Date().toISOString().slice(0,10)+".csv");
   };
   $("csv").onchange=function(){
     var f=this.files[0];if(!f)return;var rd=new FileReader();
@@ -467,14 +481,31 @@ async function paneLog(){
 function paneSettings(){
   $("pane").innerHTML=
   '<div style="display:grid;gap:18px">'+
+  '<div class="card"><h3>Welcome screen text</h3>'+
+  '<label class="f">Heading \u2014 e.g. "Commissioning Perth Office"</label>'+
+  '<input class="f" id="ti" value="'+esc(S.settings.title||DEFAULT_TITLE)+'" placeholder="'+esc(DEFAULT_TITLE)+'">'+
+  '<label class="f" style="margin-top:14px">Line underneath</label>'+
+  '<input class="f" id="sb" value="'+esc(S.settings.sub||"")+'" placeholder="'+esc(DEFAULT_SUB)+'">'+
+  '<div class="row" style="margin-top:12px"><button class="btn ghost sm" id="st">Save welcome text</button>'+
+  '<button class="btn ghost sm" id="rt">Reset to default</button></div></div>'+
   '<div class="card"><h3>Logo</h3><div id="lp"></div>'+
-  '<label class="btn ghost sm" style="display:inline-block;margin-top:12px">Upload Omexom logo (PNG/JPG)<input type="file" accept="image/*" id="lf" style="display:none"></label></div>'+
+  '<label class="btn ghost sm" style="display:inline-block;margin-top:12px">Upload Omexom logo (PNG/JPG)<input type="file" accept="image/*" id="lf" style="display:none"></label>'+
+  '<p class="muted" style="margin-top:10px;font-size:13px">Use a wide transparent PNG for the best result. It appears large on the welcome screen and small in the top bar.</p></div>'+
   '<div class="card"><h3>Visitor agreement text</h3><textarea class="f" id="ds" rows="10">'+esc(S.settings.disclosure)+'</textarea>'+
   '<button class="btn ghost sm" id="sd" style="margin-top:10px">Save agreement</button></div>'+
   '<div class="card"><h3>Admin PIN</h3><input class="f" id="pn" value="'+esc(S.settings.pin)+'" style="max-width:200px;display:inline-block">'+
   '<button class="btn ghost sm" id="sp" style="margin-left:10px">Save PIN</button></div>'+
   '<div class="card"><h3>Data retention</h3><p class="muted" style="font-size:14px">Records are kept until deleted. This removes only complete months older than 6 months \u2014 export a CSV first.</p>'+
   '<button class="btn ghost sm" id="pg" style="color:var(--red);border-color:#F3C1CD">Delete records older than 6 months</button></div></div>';
+  $("st").onclick=async function(){
+    S.settings.title=$("ti").value.trim()||DEFAULT_TITLE;
+    S.settings.sub=$("sb").value.trim();
+    await kvSet("settings",S.settings);toast("Welcome text saved");
+  };
+  $("rt").onclick=async function(){
+    S.settings.title=DEFAULT_TITLE;S.settings.sub=DEFAULT_SUB;
+    await kvSet("settings",S.settings);toast("Reset to default");paneSettings();
+  };
   $("lp").innerHTML=S.settings.logo?'<img src="'+S.settings.logo+'" style="height:40px">':'<span class="muted">Using the built-in wordmark.</span>';
   $("lf").onchange=function(){
     var f=this.files[0];if(!f)return;var img=new Image();
@@ -495,7 +526,9 @@ function paneSettings(){
   tick();setInterval(tick,20000);
   try{
     await openDB();
-    S.settings=await kvGet("settings",{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null});
+    S.settings=await kvGet("settings",{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null,title:DEFAULT_TITLE,sub:DEFAULT_SUB});
+    if(S.settings.title===undefined)S.settings.title=DEFAULT_TITLE;
+    if(S.settings.sub===undefined)S.settings.sub=DEFAULT_SUB;
     S.register=await kvGet("register",[]);
     S.onsite=await kvGet("onsite",[]);
     if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
