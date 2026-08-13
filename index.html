@@ -19,9 +19,11 @@
   body{background:var(--bg);color:var(--ink);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;}
   header{background:#fff;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;padding-top:calc(12px + env(safe-area-inset-top));}
   .logo{display:flex;align-items:center;gap:12px;cursor:pointer;background:none;border:none;padding:0;}
-  .logo .mark{width:30px;height:30px;background:var(--red);border-radius:4px;transform:skewX(-12deg);}
-  .logo .word{font-size:32px;font-weight:800;letter-spacing:.12em;color:var(--navy);}
+  .logo .mark{width:30px;height:30px;background:var(--red);border-radius:4px;transform:skewX(-12deg);flex:none;}
+  .logo .word{font-size:32px;font-weight:800;letter-spacing:.12em;color:var(--navy);line-height:1;}
   .logo img{height:54px;object-fit:contain;}
+  .logo .sys{font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--mute);line-height:1;padding-left:12px;margin-left:2px;border-left:1.5px solid var(--line);text-align:left;}
+  @media (max-width:560px){.logo .sys{display:none;}.logo .word{font-size:26px;}}
   /* large logo on the welcome screen */
   .biglogo{display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:26px;}
   .biglogo .mark{width:54px;height:54px;background:var(--red);border-radius:7px;transform:skewX(-12deg);}
@@ -74,7 +76,7 @@
 </head>
 <body>
 <header>
-  <button class="logo" id="logoBtn"><span class="mark"></span><span class="word">OMEXOM</span></button>
+  <button class="logo" id="logoBtn"><span class="mark"></span><span class="word">OMEXOM</span><span class="sys">Signing<br>System</span></button>
   <div style="display:flex;align-items:center;gap:18px">
     <div><div class="clock" id="clock">--:--</div><div class="date" id="date"></div></div>
     <button class="btn ghost sm" id="adminBtn">&#9881;</button>
@@ -245,8 +247,9 @@ async function purgeOld(){
 function render(){
   var el=$("app");
   var logoEl=$("logoBtn");
-  logoEl.innerHTML=S.settings.logo?'<img src="'+S.settings.logo+'" alt="Omexom">'
-    :'<span class="mark"></span><span class="word">OMEXOM</span>';
+  logoEl.innerHTML=(S.settings.logo?'<img src="'+S.settings.logo+'" alt="Omexom">'
+    :'<span class="mark"></span><span class="word">OMEXOM</span>')
+    +'<span class="sys">Signing<br>System</span>';
   if(S.screen==="home")return home(el);
   if(S.screen==="employee")return employee(el);
   if(S.screen==="empcam"||S.screen==="viscam")return camera(el);
