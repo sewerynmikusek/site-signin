@@ -133,7 +133,8 @@ function $(id){return document.getElementById(id);}
 /* ---------------- state ---------------- */
 var DEFAULT_TITLE="Welcome to site";
 var DEFAULT_SUB="Please sign in on arrival and sign out when leaving.";
-var S={screen:"home",settings:{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null,title:DEFAULT_TITLE,sub:DEFAULT_SUB},
+var DEFAULT_AUTO="18:00";
+var S={screen:"home",settings:{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null,title:DEFAULT_TITLE,sub:DEFAULT_SUB,autoOff:true,autoOffTime:DEFAULT_AUTO},
         register:[],onsite:[],flow:{},unlocked:false,tab:"register"};
 var stream=null;
 
@@ -190,7 +191,39 @@ async function signOut(entry){
   S.flow={};go("home");
 }
 
-/* ---------------- camera ---------------- */
+/* ---------------- automatic sign-off ----------------
+   Anyone still signed in when the configured cut-off time passes is signed
+   out automatically at that time and flagged "auto" in the log and CSV.
+   Runs on launch (catches an iPad that was switched off overnight) and
+   every minute while the app is open.                                     */
+function cutoffFor(inISO){
+  var t=(S.settings.autoOffTime||DEFAULT_AUTO).split(":");
+  var h=parseInt(t[0],10),m=parseInt(t[1],10);
+  if(isNaN(h)||isNaN(m))return null;
+  var d=new Date(inISO);
+  var c=new Date(d.getFullYear(),d.getMonth(),d.getDate(),h,m,0,0);
+  if(c<=d)c=new Date(c.getTime()+86400000); // signed in after the cut-off: use the next day's
+  return c;
+}
+async function runAutoSignOff(){
+  if(!S.settings.autoOff||!S.onsite.length)return;
+  var now=new Date(),months={},closed=0;
+  for(var i=0;i<S.onsite.length;i++){
+    var e=S.onsite[i];
+    if(!months[e.month])months[e.month]=await kvGet(e.month,[]);
+    var log=months[e.month],rec=null;
+    for(var j=0;j<log.length;j++){if(log[j].id===e.id){rec=log[j];break;}}
+    if(!rec||rec.out)continue;
+    var c=cutoffFor(rec.in);
+    if(c&&now>=c){rec.out=c.toISOString();rec.auto=true;e.closed=true;closed++;}
+  }
+  if(!closed)return;
+  for(var k in months){if(months.hasOwnProperty(k))await kvSet(k,months[k]);}
+  S.onsite=S.onsite.filter(function(o){return !o.closed;});
+  await kvSet("onsite",S.onsite);
+  toast(closed+" record"+(closed>1?"s":"")+" closed automatically at "+(S.settings.autoOffTime||DEFAULT_AUTO));
+  if(S.screen==="home")render();
+}
 function stopCam(){if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}}
 async function startCam(){
   var box=$("camBox");if(!box)return;
@@ -226,10 +259,11 @@ async function saveCSV(rows,name){
 }
 async function exportCSV(){
   var keys=(await kvKeys()).filter(function(k){return typeof k==="string"&&k.indexOf("log:")===0;}).sort();
-  var rows=[["Date","Type","Name","Email","Phone","Sign in","Sign out"]];
+  var rows=[["Date","Type","Name","Email","Phone","Sign in","Sign out","Signed out by"]];
   for(var i=0;i<keys.length;i++){
     var log=await kvGet(keys[i],[]);
-    log.forEach(function(r){rows.push([r.day,r.type,r.name,r.email,r.phone,fmtT(r.in),fmtT(r.out)]);});
+    log.forEach(function(r){rows.push([r.day,r.type,r.name,r.email,r.phone,fmtT(r.in),fmtT(r.out),
+      r.out?(r.auto?"Automatic":"Manual"):"Still open"]);});
   }
   await saveCSV(rows,"omexom-signin-"+new Date().toISOString().slice(0,10)+".csv");
 }
@@ -277,7 +311,9 @@ function home(el){
    '<button class="tile vis" id="tVis"><div class="eyebrow" style="color:var(--red)">GUESTS &amp; CONTRACTORS</div>'+
    '<h3 style="color:var(--navy)">Visitors</h3><div style="font-size:15px;color:var(--mute)">Enter your details, have your photo taken and accept the site agreement.</div>'+
    '<div class="pill" style="background:var(--bg);color:var(--navy)">'+v+' on site</div></button></div>'+
-  '<p class="center muted" style="margin-top:24px;margin-bottom:0">Sign-in records (name, contact details, photo, times) are kept for a minimum of 6 months for safety and security purposes.</p></div>';
+  '<p class="center muted" style="margin-top:24px;margin-bottom:0">Sign-in records (name, contact details, photo, times) are kept for a minimum of 6 months for safety and security purposes.'+
+  (S.settings.autoOff?'<br>Anyone still signed in at '+esc(S.settings.autoOffTime||DEFAULT_AUTO)+' is signed out automatically \u2014 please still sign out when you leave.':'')+
+  '</p></div>';
   $("tEmp").onclick=function(){S.flow={};go("employee");};
   $("tVis").onclick=function(){S.flow={};go("visitor");};
 }
@@ -476,7 +512,7 @@ async function paneLog(){
     '<td><strong>'+esc(r.name)+'</strong> <span class="tag" style="color:'+(r.type==="employee"?"var(--navy)":"var(--red)")+'">'+r.type+'</span>'+
     '<div class="muted">'+esc(r.email)+(r.phone?" \u00B7 "+esc(r.phone):"")+'</div></td>'+
     '<td style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums">'+fmtD(r.in)+
-    '<div class="muted">'+fmtT(r.in)+' \u2192 '+(r.out?fmtT(r.out):'<span style="color:var(--green);font-weight:700">on site</span>')+'</div></td></tr>';
+    '<div class="muted">'+fmtT(r.in)+' \u2192 '+(r.out?(fmtT(r.out)+(r.auto?' <span class="tag" style="color:var(--red)">auto</span>':'')):'<span style="color:var(--green);font-weight:700">on site</span>')+'</div></td></tr>';
   }
   $("rows").innerHTML=html+'</table>';
 }
@@ -484,6 +520,13 @@ async function paneLog(){
 function paneSettings(){
   $("pane").innerHTML=
   '<div style="display:grid;gap:18px">'+
+  '<div class="card"><h3>Automatic sign-off</h3>'+
+  '<p class="muted" style="font-size:14px;margin-top:0">Anyone still signed in at this time is signed out automatically, so the on-site list does not carry over to the next day. The record is timestamped at the cut-off time and marked \u201Cauto\u201D in the log and CSV.</p>'+
+  '<div class="row" style="align-items:center">'+
+  '<label style="display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600">'+
+  '<input type="checkbox" id="ao" style="width:24px;height:24px"'+(S.settings.autoOff?" checked":"")+'> Enabled</label>'+
+  '<input class="f" type="time" id="at" value="'+esc(S.settings.autoOffTime||DEFAULT_AUTO)+'" style="width:auto;padding:11px 14px;font-size:17px">'+
+  '<button class="btn ghost sm" id="sa">Save</button></div></div>'+
   '<div class="card"><h3>Welcome screen text</h3>'+
   '<label class="f">Heading \u2014 e.g. "Commissioning Perth Office"</label>'+
   '<input class="f" id="ti" value="'+esc(S.settings.title||DEFAULT_TITLE)+'" placeholder="'+esc(DEFAULT_TITLE)+'">'+
@@ -500,6 +543,13 @@ function paneSettings(){
   '<button class="btn ghost sm" id="sp" style="margin-left:10px">Save PIN</button></div>'+
   '<div class="card"><h3>Data retention</h3><p class="muted" style="font-size:14px">Records are kept until deleted. This removes only complete months older than 6 months \u2014 export a CSV first.</p>'+
   '<button class="btn ghost sm" id="pg" style="color:var(--red);border-color:#F3C1CD">Delete records older than 6 months</button></div></div>';
+  $("sa").onclick=async function(){
+    S.settings.autoOff=$("ao").checked;
+    S.settings.autoOffTime=$("at").value||DEFAULT_AUTO;
+    await kvSet("settings",S.settings);
+    toast(S.settings.autoOff?("Automatic sign-off set to "+S.settings.autoOffTime):"Automatic sign-off turned off");
+    runAutoSignOff();
+  };
   $("st").onclick=async function(){
     S.settings.title=$("ti").value.trim()||DEFAULT_TITLE;
     S.settings.sub=$("sb").value.trim();
@@ -532,13 +582,18 @@ function paneSettings(){
     S.settings=await kvGet("settings",{pin:"1234",disclosure:DEFAULT_DISCLOSURE,logo:null,title:DEFAULT_TITLE,sub:DEFAULT_SUB});
     if(S.settings.title===undefined)S.settings.title=DEFAULT_TITLE;
     if(S.settings.sub===undefined)S.settings.sub=DEFAULT_SUB;
+    if(S.settings.autoOff===undefined)S.settings.autoOff=true;
+    if(!S.settings.autoOffTime)S.settings.autoOffTime=DEFAULT_AUTO;
     S.register=await kvGet("register",[]);
     S.onsite=await kvGet("onsite",[]);
     if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
   }catch(e){toast("Storage unavailable \u2014 records will not be saved",false);}
   wake();resetIdle();render();
+  await runAutoSignOff();
+  setInterval(runAutoSignOff,60000);
   if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});
 })();
 </script>
 </body>
 </html>
+
